@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>jsPsych EEG Experiment</title>
+    <script src="js/jspsych/jspsych.js"></script>
+    <script src="js/jspsych/plugin-html-keyboard-response.js"></script>
+    <script src="js/jspsych/plugin-image-keyboard-response.js"></script>
+    <script src="js/jspsych/plugin-instructions.js"></script>
+    <script src="js/jspsych/plugin-preload.js"></script>
+    
+    <script type="text/javascript" src="lib/vendors/jquery-2.2.0.min.js"></script>
+    <!-- Originally: <script type="text/javascript" src="lib/jspsych-pavlovia-3.0.6.js"></script> -->
+    <script type="text/javascript" src="js/jspsych-7-pavlovia-2021.12.js"></script>
+
+    <link href="js/jspsych/jspsych.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body></body>
+  <script>
+
+    // initialize experiment
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            jsPsych.data.displayData();
+        }
+    });
+
+    const timeline = [];
+
+    // /* Stores info received by Pavlovia */
+    // var pavloviaInfo;
+
+    // /* init connection with pavlovia.org */
+    // var pavlovia_init = {
+    //   type: jsPsychPavlovia,
+    //   command: "init",
+    //   // Store info received by Pavlovia init into the global variable `pavloviaInfo`
+    //   setPavloviaInfo: function (info) {
+    //     console.log(info);
+    //     pavloviaInfo = info;
+    //   }
+    // };
+    // timeline.push(pavlovia_init);
+
+    //  /* preload images */
+    //  const preload = {
+    //   type: jsPsychPreload,
+    //   images: ['img/blue.png', 'img/orange.png']
+    // };
+    // timeline.push(preload);
+
+    const welcome = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: "Welcome to the experiment. Press any key to begin."
+    };
+    timeline.push(welcome);
+
+    const instructions = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>In this experiment, a word will appear in the center 
+            of the screen.</p>
+            <p>If you have seen the word before, <strong>press the f key</strong>.</p>
+            <p>If you have not seen the word before, <strong>press the j key</strong></p>
+            <div style='width: 700px;'>
+            </div>
+            <p>Press any key to begin.</p>
+        `,
+        post_trial_gap: 1000
+    };
+    timeline.push(instructions);
+
+    // test timeline variable
+    const test_stimuli = [
+        { 
+            stimulus: "<p id = 'id_encode' style = 'font-size: 30pt;'>Psychology</p>", 
+            correct_response: 'f',
+            data: {
+                string: "Psychology",
+                phase: "test",
+                type: "OLD",
+            }
+        },
+        { 
+            stimulus: "<p id = 'id_encode' style = 'font-size: 30pt;'>Biology</p>",
+            correct_response: 'j',
+            data: {
+                string: "Biology",
+                phase: "test",
+                type: "NEW",
+            }
+        }
+    ];
+
+    const fixation = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div style="font-size:60px;">+</div>',
+        choices: "NO_KEYS",
+        trial_duration: function(){
+            return jsPsych.randomization.sampleWithoutReplacement([1100, 1200, 1300], 1)[0];
+        },
+        data: {
+            task: 'fixation'
+        }
+    };
+
+    const test = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: jsPsych.timelineVariable('stimulus'),
+        choices: ['f', 'j'],
+        trial_duration: 500,
+        data: {
+            task: 'response',
+            correct_response: jsPsych.timelineVariable('correct_response')
+        },
+        on_finish: function(data){
+            data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+        }
+    };
+
+    const confidence = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Please rate your confidence.</p>
+            <p><strong>Press the f key</strong> if you are very confident.</p>
+            <p><strong>Press the j key</strong> if you are not confident.</p>
+            <div style='width: 700px;'>
+        `,
+        choices: ['f', 'j'],
+        data: {
+            task: 'confidence'
+        }
+    };
+
+    const correctness = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+            console.log(jsPsych.data.get().filter({stimulus: jsPsych.timelineVariable('stimulus')}));
+            const currentTrial = jsPsych.data.get().filter({stimulus: jsPsych.timelineVariable('stimulus')});
+            const isCorrect = currentTrial.trials[0].correct;
+
+            if (isCorrect) {
+                return `<p>You got it right</p>`
+            } else {
+                return `<p>You got it wrong</p>`
+            }
+            return `<p>You got it wrong</p>`
+        }
+    };
+
+    const test_procedure = {
+        timeline: [fixation, test, fixation, confidence, fixation, correctness],
+        timeline_variables: test_stimuli,
+        randomizeOrder: true
+    }
+    timeline.push(test_procedure);
+    
+    const debrief_block = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Thank you for taking part in this experiment.</p>
+        `
+    };
+    timeline.push(debrief_block);
+
+    // test
+    // const debrief_block = {
+    //     type: jsPsychHtmlKeyboardResponse,
+    //     stimulus: function() {
+
+    //         var trials = jsPsych.data.get().filter({task: 'response'});
+    //         var correct_trials = trials.filter({correct: true});
+    //         var accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+    //         var rt = Math.round(correct_trials.select('rt').mean());
+
+    //         return `<p>You responded correctly on ${accuracy}% of the trials.</p>
+    //                 <p>Your average response time was ${rt}ms.</p>
+    //                 <p>Press any key to complete the experiment. Thank you!</p>`;
+
+    //     }
+    // };
+    // timeline.push(debrief_block);
+
+
+    //  /* finish connection with pavlovia.org */
+    // var pavlovia_finish = {
+    //     type: jsPsychPavlovia,
+    //     command: "finish",
+    //     participantId: "TEST",
+    //     // TODO: filter function here
+    //     dataFilter: function(data) {
+    //         // Printing the data received from jsPsych.data.get().csv(); a CSV data structure
+    //         console.log(data);
+    //         // You can also access the data directly, for instance getting it as JSON
+    //         console.log(jsPsych.data.get().json());
+    //         // Return whatever data you'd like to store
+    //         return data;
+    //     },
+        
+    //     // call this function when we're done with the experiment and data reception has been confirmed by Pavlovia
+    //     completedCallback: function() {
+    //         alert('data successfully submitted!');
+    //     }
+    // };
+    // timeline.push(pavlovia_finish);
+
+    jsPsych.run(timeline);
+
+  </script>
+</html>
